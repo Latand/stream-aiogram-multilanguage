@@ -4,27 +4,15 @@ import logging
 import betterlogging as bl
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram_i18n import I18nMiddleware
+from aiogram_i18n.cores.fluent_runtime_core import FluentRuntimeCore
 
 from tgbot.config import load_config
 from tgbot.handlers import routers_list
-from tgbot.middlewares.config import ConfigMiddleware
+from tgbot.middlewares.translations import TgUserManager
 
 
 def setup_logging():
-    """
-    Set up logging configuration for the application.
-
-    This method initializes the logging configuration for the application.
-    It sets the log level to INFO and configures a basic colorized log for
-    output. The log format includes the filename, line number, log level,
-    timestamp, logger name, and log message.
-
-    Returns:
-        None
-
-    Example usage:
-        setup_logging()
-    """
     log_level = logging.INFO
     bl.basic_colorized_config(level=log_level)
 
@@ -43,11 +31,15 @@ async def main():
 
     bot = Bot(token=config.tg_bot.token, parse_mode="HTML")
     dp = Dispatcher(storage=MemoryStorage())
+    i18n_middleware = I18nMiddleware(
+        core=FluentRuntimeCore(path="tgbot/locales"),
+        default_locale="uk",
+        manager=TgUserManager(),
+    )
 
     dp.include_routers(*routers_list)
-
-    dp.message.outer_middleware(ConfigMiddleware(config))
-    dp.callback_query.outer_middleware(ConfigMiddleware(config))
+    dp.workflow_data.update(config=config)
+    i18n_middleware.setup(dp)
 
     await dp.start_polling(bot)
 
